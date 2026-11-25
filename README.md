@@ -32,7 +32,7 @@ Automated local `pre-push` security gate powered by semantic code embeddings and
                          vector_compare()                         --> Dot-product similarity search for best report match
                                 │
                                 ▼
-                         check_git_diff()                         --> Ollama inference (qwen3.5:4b, temp=0.1, JSON schema)
+                         check_git_diff()                         --> Ollama inference (qwen3.5:4b, temp=0.1, num_ctx=16384)
                                 │
                                 ▼
                      SecurityReview (Pydantic)                    --> Validates boolean verdict, reason, file & snippet
@@ -70,10 +70,10 @@ Every `git push` triggers a four-stage deterministic verification flow:
 
 | Component | Implementation | Role |
 | :--- | :--- | :--- |
-| **Diff Extractor** | `git diff @{u}..HEAD` (fallback: `origin/main..HEAD`) | Captures outgoing changes prior to remote transfer |
+| **Diff Extractor** | `git diff @{u}..HEAD` (fallback: `origin/main..HEAD`, `origin/master..HEAD`) | Captures outgoing changes while excluding lockfiles, PDFs, and local cache |
 | **Report Cache** | `SHA-256` + `PyMuPDF` + `reports_cache.json` | Incremental indexing of `reports/*.pdf` without re-embedding unchanged files |
-| **Semantic Retriever** | `jinaai/jina-embeddings-v2-base-code` (`FastEmbed`) | Maps code diffs and vulnerability reports into a shared vector space |
-| **Code Auditor** | `qwen3.5:4b` (`Ollama`, `temperature=0.1`, `think=False`) | Evaluates whether the diff introduces or repeats the matched vulnerability |
+| **Semantic Retriever** | `jinaai/jina-embeddings-v2-base-code` (`FastEmbed`) | Lazy-loaded embedding model mapping code diffs and reports into a shared vector space |
+| **Code Auditor** | `qwen3.5:4b` (`Ollama`, `temperature=0.1`, `num_ctx=16384`, `think=False`) | Evaluates whether the diff introduces or repeats the matched vulnerability |
 
 ---
 
@@ -81,7 +81,11 @@ Every `git push` triggers a four-stage deterministic verification flow:
 
 ### 1. Python Dependencies
 
+Create a virtual environment and install the required packages:
+
 ```bash
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install ollama pymupdf fastembed pydantic rich
 ```
 
@@ -100,20 +104,31 @@ ollama pull qwen3.5:4b
 ## Execution & Git Hook Setup
 
 ### 1. Wire as a `pre-push` Hook
-Link `src/pre_push.py` into `.git/hooks/pre-push` and make it executable (the OWASP Top 10:2025 reports in `reports/` work out of the box):
 
+Link `src/pre_push.py` into `.git/hooks/pre-push` using the Python interpreter from your virtual environment so all dependencies resolve automatically during `git push`:
+
+**Linux / macOS:**
 ```bash
 cat << 'EOF' > .git/hooks/pre-push
-#!/usr/bin/env bash
-python3 src/pre_push.py
+#!/bin/sh
+exec ".venv/bin/python" "src/pre_push.py" "$@"
 EOF
 chmod +x .git/hooks/pre-push
+```
+
+**Windows (Git Bash):**
+```bash
+cat << 'EOF' > .git/hooks/pre-push
+#!/bin/sh
+exec ".venv/Scripts/python.exe" "src/pre_push.py" "$@"
+EOF
 ```
 
 ### 2. Gate Behavior
 - **Empty diff / missing `reports/`:** Prints status notice and exits with `0` (push proceeds).
 - **Safe diff (`vulnerable: false`):** Prints `PASSED! pushing...` and exits with `0`.
 - **Vulnerability detected (`vulnerable: true`):** Renders a `PUSH BLOCKED` `rich.panel.Panel` containing the matched report filename, root cause, target file, and `monokai` syntax-highlighted offending code snippet, then exits with `1`.
+- **Runtime / LLM error (`fail-closed`):** Prints the error message to `stderr` and exits with `1` to prevent unverified code from being pushed.
 
 ---
 
@@ -149,10 +164,9 @@ LLM responses are constrained via `format=SecurityReview.model_json_schema()` (`
 ├── src/
 │   ├── logic.py             # Git diff subprocess, PDF parser, SHA-256 vector cache, Ollama audit
 │   └── pre_push.py          # Git pre-push entrypoint, pipeline orchestration, Rich UI panels
-├── .gitignore
+├── .gitignore               # Ignores local artifacts including reports_cache.json
 ├── LICENSE
-├── README.md
-└── reports_cache.json       # Auto-generated SHA-256 indexed text & embedding cache
+└── README.md
 ```
 
 ---
