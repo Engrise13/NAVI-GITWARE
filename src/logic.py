@@ -92,8 +92,17 @@ def check_git_diff(diff: str, report: str) -> SecurityReview:
 
 
 def get_push_diff() -> str:
+    excludes = [
+        ":(exclude)*.json",
+        ":(exclude)*.pdf",
+        ":(exclude)*.lock",
+        ":(exclude)uv.lock",
+        ":(exclude)poetry.lock",
+        ":(exclude)package-lock.json",
+    ]
+
     result = subprocess.run(
-        ["git", "diff", "@{u}..HEAD"],
+        ["git", "diff", "@{u}..HEAD", "--", ".", *excludes],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -102,7 +111,7 @@ def get_push_diff() -> str:
 
     if result.returncode != 0:
         result = subprocess.run(
-            ["git", "diff", "origin/main..HEAD"],
+            ["git", "diff", "origin/main..HEAD", "--", ".", *excludes],
             capture_output=True,
             text=True,
             encoding="utf-8",
