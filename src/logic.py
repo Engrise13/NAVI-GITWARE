@@ -1,5 +1,6 @@
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import ollama
@@ -79,3 +80,24 @@ def check_git_diff(diff: str, report: str) -> SecurityReview:
         think=False,
     )
     return SecurityReview.model_validate_json(response["response"])
+
+
+def get_push_diff() -> str:
+    result = subprocess.run(
+        ["git", "diff", "@{u}..HEAD"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    if result.returncode != 0:
+        result = subprocess.run(
+            ["git", "diff", "origin/main..HEAD"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+
+    return result.stdout
