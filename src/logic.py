@@ -46,6 +46,7 @@ def update_cache(reports_path: Path | str, cache_file_path: Path | str) -> dict:
     for pdf in reports_path.glob("*.pdf"):
         file_hash = hashlib.sha256(pdf.read_bytes()).hexdigest()
         new_cache[file_hash] = old_cache.get(file_hash) or {
+            "report_filename": pdf.name,
             "report_text": (text := pdf_to_text(pdf)),
             "report_embedding": get_embedding(text),
         }
