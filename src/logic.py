@@ -21,8 +21,7 @@ class SecurityReview(BaseModel):
 
 
 def get_embedding(text: str) -> list[float]:
-    embedding = next(embedding_model.embed([text]))
-    return embedding.tolist()
+    return next(embedding_model.embed([text])).tolist()
 
 
 def vector_compare(vec1: list[float], vec2: list[float]) -> float:
@@ -30,7 +29,6 @@ def vector_compare(vec1: list[float], vec2: list[float]) -> float:
 
 
 def pdf_to_text(path: Path | str) -> str:
-    path = Path(path)
     with pymupdf.open(Path(path)) as pdf:
         return "\n".join(page.get_text() for page in pdf)
 
@@ -60,17 +58,15 @@ def update_cache(reports_path: Path | str, cache_file_path: Path | str) -> dict:
     return new_cache
 
 
-def check_git_diff(diff: str, report: str) -> str:
+def check_git_diff(diff: str, report: str) -> SecurityReview:
     prompt = (
         "You are a security code reviewer. Check if the provided git diff introduces "
         "or repeats the vulnerability described in the security report.\n\n"
-        "Respond ONLY with valid JSON matching this schema:\n"
-        "{\n"
-        '  "vulnerable": boolean,\n'
-        '  "reason": "one short sentence in English explaining why, or PASS if safe",\n'
-        '  "file": "path to the vulnerable file from the diff (without b/ prefix), or empty string if safe",\n'
-        '  "snippet": "exact vulnerable line or short code snippet from the diff (without leading +), or empty string if safe"\n'
-        "}\n"
+        "Field rules:\n"
+        "- vulnerable: true if the diff is vulnerable, false otherwise.\n"
+        "- reason: one short sentence in English explaining why, or 'PASS' if safe.\n"
+        "- file: vulnerable file path from the diff (without 'b/' prefix), or empty string if safe.\n"
+        "- snippet: exact vulnerable line or short snippet from the diff (without leading '+'), or empty string if safe.\n\n"
         f"Security Report:\n{report}\n\n"
         f"Git Diff:\n{diff}"
     )
@@ -82,4 +78,4 @@ def check_git_diff(diff: str, report: str) -> str:
         options={"temperature": 0.1},
         think=False,
     )
-    return response["response"]
+    return SecurityReview.model_validate_json(response["response"])
