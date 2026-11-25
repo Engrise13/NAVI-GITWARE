@@ -83,7 +83,7 @@ def check_git_diff(diff: str, report: str) -> SecurityReview:
 
     response = ollama.generate(
         model=LLM_MODEL,
-        prompt=prompt,
+        prompt=prompt[:45000],
         format=SecurityReview.model_json_schema(),
         options={"temperature": 0.1, "num_ctx": 16384},
         think=False,
@@ -93,29 +93,21 @@ def check_git_diff(diff: str, report: str) -> SecurityReview:
 
 def get_push_diff() -> str:
     excludes = [
-        ":(exclude)*.json",
+        ":(exclude)reports_cache.json",
         ":(exclude)*.pdf",
         ":(exclude)*.lock",
-        ":(exclude)uv.lock",
-        ":(exclude)poetry.lock",
         ":(exclude)package-lock.json",
     ]
 
-    result = subprocess.run(
-        ["git", "diff", "@{u}..HEAD", "--", ".", *excludes],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        check=False,
-    )
-
-    if result.returncode != 0:
+    for target in ("@{u}..HEAD", "origin/main..HEAD", "origin/master..HEAD"):
         result = subprocess.run(
-            ["git", "diff", "origin/main..HEAD", "--", ".", *excludes],
+            ["git", "diff", target, "--", ".", *excludes],
             capture_output=True,
             text=True,
             encoding="utf-8",
             check=False,
         )
+        if result.returncode == 0:
+            return result.stdout
 
-    return result.stdout
+    return ""
