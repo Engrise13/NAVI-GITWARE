@@ -42,7 +42,7 @@ def check_git_diff(diff: str, report: str) -> str:
         '  "reason": "one short sentence in English explaining why, or PASS if safe",\n'
         '  "file": "path to the vulnerable file from the diff (without b/ prefix), or empty string if safe",\n'
         '  "snippet": "exact vulnerable line or short code snippet from the diff (without leading +), or empty string if safe"\n'
-        "}\n\n"
+        "}\n"
         f"Security Report:\n{report}\n\n"
         f"Git Diff:\n{diff}"
     )
