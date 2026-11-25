@@ -1,7 +1,9 @@
+import hashlib
+import json
 from pathlib import Path
 
 import ollama
-import pymupdf as fitz
+import pymupdf
 from fastembed import TextEmbedding
 from pydantic import BaseModel
 
@@ -28,8 +30,34 @@ def vector_compare(vec1: list[float], vec2: list[float]) -> float:
 
 
 def pdf_to_text(path: Path | str) -> str:
-    with fitz.open(Path(path)) as pdf:
+    path = Path(path)
+    with pymupdf.open(Path(path)) as pdf:
         return "\n".join(page.get_text() for page in pdf)
+
+
+def update_cache(reports_path: Path | str, cache_file_path: Path | str) -> dict:
+    reports_path, cache_file_path = Path(reports_path), Path(cache_file_path)
+    if cache_file_path.exists():
+        old_cache = json.loads(cache_file_path.read_text(encoding="utf-8"))
+    else:
+        old_cache = {}
+
+    new_cache = {}
+
+    for pdf in reports_path.glob("*.pdf"):
+        file_hash = hashlib.sha256(pdf.read_bytes()).hexdigest()
+        new_cache[file_hash] = old_cache.get(file_hash) or {
+            "report_text": (text := pdf_to_text(pdf)),
+            "report_embedding": get_embedding(text),
+        }
+
+    if old_cache.keys() != new_cache.keys():
+        cache_file_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_file_path.write_text(
+            json.dumps(new_cache, ensure_ascii=False), encoding="utf-8"
+        )
+
+    return new_cache
 
 
 def check_git_diff(diff: str, report: str) -> str:
