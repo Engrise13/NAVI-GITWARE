@@ -13,7 +13,7 @@ from logic import (
     vector_compare,
 )
 
-GATE_TITLE = "GITWARE SECURITY GATE"
+GATE_TITLE = "NAVI GITWARE"
 
 console = Console(stderr=True)
 console.rule(f"[bold cyan]{GATE_TITLE}[/]")
