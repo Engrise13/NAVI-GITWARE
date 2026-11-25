@@ -85,7 +85,7 @@ def check_git_diff(diff: str, report: str) -> SecurityReview:
         model=LLM_MODEL,
         prompt=prompt,
         format=SecurityReview.model_json_schema(),
-        options={"temperature": 0.1},
+        options={"temperature": 0.1, "num_ctx": 16384},
         think=False,
     )
     return SecurityReview.model_validate_json(response["response"])
