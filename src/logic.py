@@ -11,7 +11,7 @@ from pydantic import BaseModel
 EMBEDDING_MODEL = "jinaai/jina-embeddings-v2-base-code"
 LLM_MODEL = "qwen3.5:4b"
 
-embedding_model = TextEmbedding(model_name=EMBEDDING_MODEL)
+_embedding_model: TextEmbedding | None = None
 
 
 class SecurityReview(BaseModel):
@@ -21,8 +21,16 @@ class SecurityReview(BaseModel):
     snippet: str
 
 
+def _get_embedding_model() -> TextEmbedding:
+    global _embedding_model
+    if _embedding_model is None:
+        _embedding_model = TextEmbedding(model_name=EMBEDDING_MODEL)
+    return _embedding_model
+
+
 def get_embedding(text: str) -> list[float]:
-    return next(embedding_model.embed([text])).tolist()
+    model = _get_embedding_model()
+    return next(model.embed([text])).tolist()
 
 
 def vector_compare(vec1: list[float], vec2: list[float]) -> float:
