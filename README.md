@@ -150,6 +150,7 @@ LLM responses are constrained via `format=SecurityReview.model_json_schema()` (`
 ## Project Structure
 
 ```text
+NAVI_GITWARE/
 ├── reports/
 │   ├── A01_2025_Broken_Access_Control_and_SSRF.pdf
 │   ├── A02_2025_Security_Misconfiguration.pdf
@@ -162,9 +163,8 @@ LLM responses are constrained via `format=SecurityReview.model_json_schema()` (`
 │   ├── A09_2025_Logging_and_Alerting_Failures.pdf
 │   └── A10_2025_Mishandling_Exceptional_Conditions.pdf
 ├── src/
-│   ├── logic.py             # Git diff subprocess, PDF parser, SHA-256 vector cache, Ollama audit
-│   └── pre_push.py          # Git pre-push entrypoint, pipeline orchestration, Rich UI panels
-├── .gitignore               # Ignores local artifacts including reports_cache.json
+│   ├── logic.py       # Git diff subprocess, PDF parser, SHA-256 vector cache, Ollama audit
+│   └── pre_push.py    # Git pre-push entrypoint, pipeline orchestration, Rich UI panels
 ├── LICENSE
 └── README.md
 ```
